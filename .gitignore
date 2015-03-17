@@ -1,0 +1,8 @@
+
+*.prg
+
+bin/BitcoinPrice-CIQ.prg.debug.xml
+
+bin/BitcoinPrice.prg.debug.xml
+
+.project
