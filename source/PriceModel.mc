@@ -3,15 +3,22 @@ using Toybox.Time as Time;
 using Toybox.Time.Gregorian as Gre;
 using Toybox.System as Sys;
 
+
+var historicalDays = 5;
+
 class BitcoinPrice
 {
-	var value;
-	var time;
-	var history;
+	var lastPrice = 0.0;
+	var time = "";  // time in UTC for lastPrice as string, e.g. Mar 30, 2015 17:20:00 UTC
+
+	var history = null;
 }
+
 
 class PriceModel
 {
+	var bcp = null;
+	
 	hidden var notify;
 
   	function initialize(handler)
@@ -19,9 +26,12 @@ class PriceModel
         notify = handler;
 	
 		var today = Time.now();
-		Sys.println(today.value());
-		var start = Gre.info(today.add(new Time.Duration(Gre.SECONDS_PER_DAY * -5)), Gre.FORMAT_SHORT);
+
+		var start = Gre.info(today.add(new Time.Duration(Gre.SECONDS_PER_DAY * -1 * historicalDays)), Gre.FORMAT_SHORT);
 		var end = Gre.info(today, Gre.FORMAT_SHORT);
+		
+		
+		// TODO: handle error if Comm module does not exist
 		
 		// get current price
 		Comm.makeJsonRequest("http://api.coindesk.com/v1/bpi/currentprice/USD.json",
@@ -41,7 +51,7 @@ class PriceModel
              				 
     }
 
-	var bcp = null;
+
 
 	function onReceivePrice(responseCode, data)
     {
@@ -49,16 +59,13 @@ class PriceModel
         {
         	if(bcp == null)
         	{
-            	var bcp = new BitcoinPrice();
+            	bcp = new BitcoinPrice();
 			}
             
-            Sys.println(data["bpi"]["USD"]["rate"]);
-            Sys.println(data["time"]["updated"]);
+            bcp.lastPrice = data["bpi"]["USD"]["rate"];
+            bcp.time = data["time"]["updated"];
             
-            bcp.price = data["bpi"]["USD"]["rate"];
-            //bcp.time = data["time"]["updated"];
-            
-            if(bcp.history)
+            if(bcp.history != null)
             {
             	notify.invoke(bcp);
             }
@@ -71,17 +78,16 @@ class PriceModel
 	
   	function onReceiveHistory(responseCode, data)
     {
-    return;
         if(responseCode == 200)
         {
         	if(bcp == null)
         	{
-            	var bcp = new BitcoinPrice();
+            	bcp = new BitcoinPrice();
            	}
       
-            bcp.history = data["bpi"];
-            
-            if(bcp.value)
+            bcp.history = data["bpi"].values();
+                        
+            if(bcp.lastPrice != 0.0)
             {
             	notify.invoke(bcp);
            	}
