@@ -62,7 +62,7 @@ class PriceModel
             	bcp = new BitcoinPrice();
 			}
             
-            bcp.lastPrice = data["bpi"]["USD"]["rate"];
+            bcp.lastPrice = data["bpi"]["USD"]["rate"].toFloat();
             bcp.time = data["time"]["updated"];
             
             if(bcp.history != null)

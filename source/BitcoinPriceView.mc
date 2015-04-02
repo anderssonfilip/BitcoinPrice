@@ -9,11 +9,12 @@ class BitcoinPriceView extends Ui.View {
 
    	hidden var mDelta = null;
    	hidden var mPrice = 0.0;
-    hidden var mModel;
     
-    var graphHeight = 20;  // height in pixels
+    hidden var isHistoricTrendPositive = true;
+    hidden var isDailyTrendPositive = true;
+    
+    hidden var graphHeight = 10;  // height in pixels
         
-
     //! Load your resources here
     function onLayout(dc) {
         //setLayout(Rez.Layouts.MainLayout(dc));
@@ -33,26 +34,46 @@ class BitcoinPriceView extends Ui.View {
 
 		if(mDelta != null)
 		{
-    		dc.drawText(dc.getWidth()/2, dc.getHeight()/2, Graphics.FONT_MEDIUM, "$ " + Lang.format("$1$", [mPrice]), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-    	
-    	
-    		// TODO: draw trend line from historical returns
-			var xs = new [5];
-			xs[0] = -50;
-			xs[1] = -25;
-			xs[2] = 0;
-			xs[3] = 25;
-			xs[4] = 50;
-			for(var i = 1 ; i < mDelta.size() ; i++)
+			if(isDailyTrendPositive)
 			{
-				var y = mDelta[i] - mDelta[i-1];
-				Sys.println(y);
-				dc.drawLine(dc.getWidth()/2 - xs[i-1], dc.getHeight()/2 + 40 + mDelta[i-1], dc.getWidth()/2 - xs[i], dc.getHeight()/2 + 40 + mDelta[i]);
+				dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_BLACK); 
+			}
+			else
+			{
+				dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_BLACK); 
+			}
+    		dc.drawText(dc.getWidth()/2, dc.getHeight()/2, Graphics.FONT_LARGE, "$ " + Lang.format("$1$", [mPrice.format("%.2f")]), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    	
+			var xs = new [6];
+			xs[0] = -50;
+			xs[1] = -30;
+			xs[2] = -10;
+			xs[3] = 10;
+			xs[4] = 30;
+			xs[5] = 50;
+			
+			dc.setPenWidth(4);
+			if(isHistoricTrendPositive)
+			{
+				dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_BLACK); 
+			}
+			else
+			{
+				dc.setColor(Graphics.COLOR_RED, Graphics.COLOR_BLACK); 
+			}
+			var xC = dc.getWidth()/2;
+			var yC = dc.getHeight()/2 + 40;
+			var y = yC - mDelta[0];
+			dc.drawLine(xC + xs[0], yC, xC + xs[1], y);
+			for(var i = 1 ; i < mDelta.size(); i++)
+			{
+				dc.drawLine(xC + xs[i], y, xC + xs[i+1], y - mDelta[i]);
+				y = y - mDelta[i];
 			}
     	}
     	else
     	{
-        	dc.drawText(dc.getWidth()/2, dc.getHeight()/2, Graphics.FONT_MEDIUM, "Bitcoin\nWaiting for data", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        	dc.drawText(dc.getWidth()/2, dc.getHeight()/2, Graphics.FONT_LARGE, "Bitcoin\nWaiting for data", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     	}
     }
 
@@ -70,20 +91,26 @@ class BitcoinPriceView extends Ui.View {
         
 			var max = 0.0;
 			var delta = new [bcp.history.size()];
-			delta[0] = 0.0;
-			for(var i = 1 ; i < bcp.history.size() ; i++)
+			var i;
+			for(i = 0;i < bcp.history.size() - 1 ; i++)
 			{
-				delta[i] = bcp.history[i] - bcp.history[i-1];
+				delta[i] = bcp.history[i+1] - bcp.history[i];
+
 				if(Math.pow(delta[i], 2) > max)
 				{
-					max = Math.sqrt(Math.pow(delta[i], 2));
+					max = delta[i].abs();
 				}
 			}
-			for(var i = 1 ; i < delta.size() ; i++)  // normalize returns
+			delta[i] = bcp.lastPrice - bcp.history[bcp.history.size()-1];
+
+			var totalPnl = 0.0;
+			for(i = 0 ; i < delta.size() ; i++)  // normalize returns
 			{
+				totalPnl = totalPnl + delta[i];
 				delta[i] = (delta[i] / max) * graphHeight;
-				
 			}
+			isDailyTrendPositive = delta[delta.size()-1] >= 0.0;
+			isHistoricTrendPositive = totalPnl >= 0.0;
 			
 			mDelta = delta;
 			
