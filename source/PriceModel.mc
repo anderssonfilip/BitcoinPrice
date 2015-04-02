@@ -25,33 +25,39 @@ class PriceModel
     {
         notify = handler;
 	
-		var today = Time.now();
+		var utcNow = Time.now();
 
-		var start = Gre.info(today.add(new Time.Duration(Gre.SECONDS_PER_DAY * -1 * historicalDays)), Gre.FORMAT_SHORT);
-		var end = Gre.info(today, Gre.FORMAT_SHORT);
-		
-		
-		// TODO: handle error if Comm module does not exist
-		
-		// get current price
-		Comm.makeJsonRequest("http://api.coindesk.com/v1/bpi/currentprice/USD.json",
-             				 {}, 
-             				 {}, 
-             				 method(:onReceivePrice));
-		
-		// get historical price
-        Comm.makeJsonRequest("http://api.coindesk.com/v1/bpi/historical/close.json",
-             				 {	
-             				 	"index" => "USD", 
-             				 	"start" => start.year + "-" + start.month.format("%.2d") + "-" + start.day.format("%.2d"), 
-             				 	"end"=> end.year + "-" + end.month.format("%.2d") + "-" + end.day.format("%.2d")
-             				 }, 
-             				 {}, 
-             				 method(:onReceiveHistory));
-             				 
+		var start = Gre.info(utcNow.add(new Time.Duration(Gre.SECONDS_PER_DAY * -1 * historicalDays)), Gre.FORMAT_SHORT);
+		var end = Gre.info(utcNow, Gre.FORMAT_SHORT);
+		 
+		// Comment when using simulator
+		var settings = Sys.getDeviceSettings();
+		// documented: phoneConnected is missing in vivoactive FW 2.30
+		if(settings has :phoneConnected and !settings.phoneConnected){ notify.invoke("Phone\nnot\nconnected"); return; }
+				
+		if (Toybox has :Communications) 
+		{
+			// get last price
+			Comm.makeJsonRequest("http://api.coindesk.com/v1/bpi/currentprice/USD.json",
+		         				 {}, 
+		         				 {}, 
+		         				 method(:onReceivePrice));
+			
+			// get historical price
+		    Comm.makeJsonRequest("http://api.coindesk.com/v1/bpi/historical/close.json",
+		         				 {	
+		         				 	"index" => "USD", 
+		         				 	"start" => start.year + "-" + start.month.format("%.2d") + "-" + start.day.format("%.2d"), 
+		         				 	"end"=> end.year + "-" + end.month.format("%.2d") + "-" + end.day.format("%.2d")
+		         				 }, 
+		         				 {}, 
+		         				 method(:onReceiveHistory));
+      	}
+      	else
+      	{
+      		notify.invoke("Communication\nnot\npossible");
+      	}     				 
     }
-
-
 
 	function onReceivePrice(responseCode, data)
     {
@@ -70,9 +76,9 @@ class PriceModel
             	notify.invoke(bcp);
             }
         }
-        else
+        else 
         {
-            notify.invoke("Failed to load\nError: " + responseCode.toString());
+        	handleError(responseCode, data);
         }
     }
 	
@@ -92,9 +98,21 @@ class PriceModel
             	notify.invoke(bcp);
            	}
         }
+        else 
+        {
+        	handleError(responseCode, data);
+        }
+    }
+    
+    function handleError(responseCode, data)
+    {
+    	if(responseConde == 408) // Request Timeout
+		{
+			notify.invoke("Data request\ntimed out");
+		}
         else
         {
-            notify.invoke("Failed to load\nError: " + responseCode.toString());
+            notify.invoke("Data request\nfailed\nError: " + responseCode.toString());
         }
     }
 }
