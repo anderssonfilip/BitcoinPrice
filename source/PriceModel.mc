@@ -4,8 +4,6 @@ using Toybox.Time.Gregorian as Gre;
 using Toybox.System as Sys;
 
 
-var historicalDays = 5;
-
 class BitcoinPrice
 {
 	var lastPrice = 0.0;
@@ -17,34 +15,35 @@ class BitcoinPrice
 
 class PriceModel
 {
-	var bcp = null;
+	var bcp = null;  // type BitcoinPrice
 	
+	hidden var baseURL = "http://api.coindesk.com/v1/bpi/";
+	hidden var historicalDays = 5;
 	hidden var notify;
 
   	function initialize(handler)
     {
         notify = handler;
-	
-		var utcNow = Time.now();
-
-		var start = Gre.info(utcNow.add(new Time.Duration(Gre.SECONDS_PER_DAY * -1 * historicalDays)), Gre.FORMAT_SHORT);
-		var end = Gre.info(utcNow, Gre.FORMAT_SHORT);
 		 
 		// Comment when using simulator
 		var settings = Sys.getDeviceSettings();
 		// documented: phoneConnected is missing in vivoactive FW 2.30
-		if(settings has :phoneConnected and !settings.phoneConnected){ notify.invoke("Phone\nnot\nconnected"); return; }
-				
+		//if(settings has :phoneConnected and !settings.phoneConnected){ notify.invoke("Phone\nnot\nconnected"); return; }
+					
 		if (Toybox has :Communications) 
 		{
 			// get last price
-			Comm.makeJsonRequest("http://api.coindesk.com/v1/bpi/currentprice/USD.json",
+			Comm.makeJsonRequest(baseURL + "currentprice/USD.json",
 		         				 {}, 
 		         				 {}, 
 		         				 method(:onReceivePrice));
 			
 			// get historical price
-		    Comm.makeJsonRequest("http://api.coindesk.com/v1/bpi/historical/close.json",
+			var t = Time.now().add(new Time.Duration(-Sys.getClockTime().timeZoneOffset));
+			var start = Gre.info(t.add(new Time.Duration(Gre.SECONDS_PER_DAY * -1 * historicalDays)), Gre.FORMAT_SHORT);			 
+			var end = Gre.info(t, Gre.FORMAT_SHORT);
+						   	   
+		    Comm.makeJsonRequest(baseURL + "historical/close.json",
 		         				 {	
 		         				 	"index" => "USD", 
 		         				 	"start" => start.year + "-" + start.month.format("%.2d") + "-" + start.day.format("%.2d"), 
@@ -71,10 +70,9 @@ class PriceModel
             bcp.lastPrice = data["bpi"]["USD"]["rate"].toFloat();
             bcp.time = data["time"]["updated"];
             
-            if(bcp.history != null)
-            {
-            	notify.invoke(bcp);
-            }
+            if(bcp.history == null){ return; } // wait for historic data in other callback
+            
+            notify.invoke(bcp);
         }
         else 
         {
@@ -93,10 +91,9 @@ class PriceModel
       
             bcp.history = data["bpi"].values();
                         
-            if(bcp.lastPrice != 0.0)
-            {
-            	notify.invoke(bcp);
-           	}
+            if(bcp.lastPrice == 0.0){ return; } // wait for last price in other callback
+            	
+            notify.invoke(bcp);
         }
         else 
         {

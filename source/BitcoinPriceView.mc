@@ -8,7 +8,10 @@ class BitcoinPriceView extends Ui.View {
 
 	hidden var commError = null; // place holder for notification of missing Communications module
    	hidden var mDelta = null;
-   	hidden var mPrice = 0.0;
+   	hidden var mLastPrice = 0.0;
+   	hidden var mLastReturn = 0.0;  // total return (%) over last day period, including last price
+   	hidden var mHigh = 0.0;
+   	hidden var mLow = 0.0;
     
     hidden var isHistoricTrendPositive = true;
     hidden var isDailyTrendPositive = true;
@@ -49,6 +52,8 @@ class BitcoinPriceView extends Ui.View {
 		if(mDelta != null)
 		{
 			var foreground = null;
+			var graphPenWidth = 3;
+			
 			if(isDailyTrendPositive)
 			{
 				foreground = Graphics.COLOR_GREEN;
@@ -59,11 +64,9 @@ class BitcoinPriceView extends Ui.View {
 			}
 			dc.setColor(foreground, Graphics.COLOR_TRANSPARENT);
 			
-			var yOffset = dc.getFontHeight(Graphics.FONT_LARGE) + dc.getFontHeight(Graphics.FONT_TINY);
-			dc.drawText(dc.getWidth()/2, dc.getHeight()/2 - yOffset, Graphics.FONT_TINY, "Last price", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-    		dc.drawText(dc.getWidth()/2, dc.getHeight()/2 - graphHeight*2, Graphics.FONT_LARGE, "$ " + Lang.format("$1$", [mPrice.format("%.2f")]), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-    					
-			dc.setPenWidth(3);
+			drawLastPrice(dc);
+							
+			dc.setPenWidth(graphPenWidth);
 			
 			if(isHistoricTrendPositive)
 			{
@@ -88,6 +91,7 @@ class BitcoinPriceView extends Ui.View {
 			var y = yC - mDelta[0];
 			dc.drawLine(xs[0], yC, xs[1], y);
 			var yBottom = y;
+			var yTop = y;
 			for(var i = 1 ; i < mDelta.size(); i++)
 			{
 				dc.drawLine(xs[i], y, xs[i+1], y - mDelta[i] * graphHeight);
@@ -96,13 +100,57 @@ class BitcoinPriceView extends Ui.View {
 				{
 					yBottom = y;
 				}
+				else if(y < yTop)
+				{
+					yTop = y;
+				}
 			}
+			
 			dc.drawText(xC, yBottom + graphHeight, Graphics.FONT_TINY, mDelta.size() + " days", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    		
+    		drawOpenClosePricesInGraph(dc, 
+    								  xs[0], xs[xs.size()-1], 
+    								  yBottom + graphPenWidth/2, yTop - graphPenWidth/2, 
+    								  mLow,
+    								  mHigh);
     	}
     	else
     	{
         	dc.drawText(dc.getWidth()/2, dc.getHeight()/2, Graphics.FONT_LARGE, "Bitcoin\nWaiting for data", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     	}
+    }
+    
+    //! Draw last price and return since yesterday
+    function drawLastPrice(dc)
+    {
+    	var priceFont = Graphics.FONT_NUMBER_HOT;
+    
+    	var yOffset = dc.getFontHeight(priceFont) + dc.getFontHeight(Graphics.FONT_TINY);
+		dc.drawText(dc.getWidth()/2, dc.getHeight()/2 - yOffset, Graphics.FONT_TINY, "Last price", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    		
+    	var priceLabel = Lang.format("$1$", [mLastPrice.format("%.2f")]);
+    	dc.drawText(dc.getWidth()/2 - dc.getTextWidthInPixels(priceLabel, priceFont)/2, dc.getHeight()/2 - graphHeight*2, Graphics.FONT_LARGE, "$ ", Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
+    	dc.drawText(dc.getWidth()/2, dc.getHeight()/2 - graphHeight*2, priceFont, priceLabel, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+
+    	dc.drawText(dc.getWidth()/2 + dc.getTextWidthInPixels(priceLabel, priceFont)/2,
+    				dc.getHeight()/2 - yOffset + dc.getTextDimensions("Last price", Graphics.FONT_TINY)[1], 
+    				Graphics.FONT_TINY, 
+    				Lang.format("$1$", [(mLastReturn * 100).format("%.2f")]) + "%", 
+    				Graphics.TEXT_JUSTIFY_LEFT);
+    }
+     
+    //! Draw high/low price next to graph
+    function drawOpenClosePricesInGraph(dc, xLeft, xRight, yBottom, yTop, open, close)
+    {
+		dc.setPenWidth(1);
+		dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_BLACK);  // overpainting
+		
+		dc.drawLine(xLeft, yTop, xRight, yTop);	
+		dc.drawLine(xLeft, yBottom, xRight, yBottom);
+		
+		// TODO: price should be rounded not truncated
+		dc.drawText(xRight, yBottom, Graphics.FONT_XTINY, open.format("%d"), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+		dc.drawText(xRight, yTop, Graphics.FONT_XTINY, close.format("%d"), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
     }
     
     //! Called by PriceModel when data is received by JSON request or request returned error.
@@ -111,12 +159,17 @@ class BitcoinPriceView extends Ui.View {
     {        
         if (bcp instanceof BitcoinPrice)
         {
-        	mPrice = bcp.lastPrice;
+        	mLastPrice = bcp.lastPrice;
+        	
+        	// return since yesterday
+        	mLastReturn = (mLastPrice - bcp.history[bcp.history.size()-1])/bcp.history[bcp.history.size()-1];
         
 			var max = 0.0;
 			var delta = new [bcp.history.size()];
+			mHigh = bcp.history[0];
+			mLow = bcp.history[0];
 			var i;
-			for(i = 0;i < bcp.history.size() - 1 ; i++)  // convert prices to returns
+			for(i = 0;i < bcp.history.size() - 1 ; i++)  // convert prices to returns, find open close
 			{
 				delta[i] = bcp.history[i+1] - bcp.history[i];
 
@@ -124,6 +177,16 @@ class BitcoinPriceView extends Ui.View {
 				{
 					max = delta[i].abs();
 				}
+				
+				if(bcp.history[i] > mHigh)
+				{
+					mHigh = bcp.history[i];
+				}
+				if(bcp.history[i] < mLow)
+				{
+					mLow = bcp.history[i];
+				}
+				
 			}
 			
 			// include last price in returns array
@@ -132,6 +195,15 @@ class BitcoinPriceView extends Ui.View {
 			{
 				max = delta[i].abs();
 			}
+			if(bcp.lastPrice > mHigh)
+			{
+				mHigh = bcp.lastPrice;
+			}
+			if(bcp.lastPrice < mLow)
+			{
+				mLow = bcp.lastPrice;
+			}
+			
 
 			var totalPnl = 0.0;
 			for(i = 0 ; i < delta.size() ; i++)  // normalize returns
