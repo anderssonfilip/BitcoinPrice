@@ -1,7 +1,0 @@
-<layout id="F3Layout">
-...
-<label id="LastPrice" x="dc.getWidth()/2" y="dc.getHeight()/2" text="" font="Gfx.FONT_LARGE"
-color="Gfx.COLOR_WHITE" />
-
-
-</layout>

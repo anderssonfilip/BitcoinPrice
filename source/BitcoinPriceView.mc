@@ -88,7 +88,7 @@ class BitcoinPriceView extends Ui.View {
 				xs[i] = xC + (-0.5*graphWidth + xStep*i);
 			}
 			
-			var y = yC - mDelta[0];
+			var y = yC;
 			dc.drawLine(xs[0], yC, xs[1], y);
 			var yBottom = y;
 			var yTop = y;
@@ -105,6 +105,8 @@ class BitcoinPriceView extends Ui.View {
 					yTop = y;
 				}
 			}
+			
+			Sys.println("yTop: " + yTop);
 			
 			dc.drawText(xC, yBottom + graphHeight, Graphics.FONT_TINY, mDelta.size() + " days", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     		
@@ -124,19 +126,39 @@ class BitcoinPriceView extends Ui.View {
     function drawLastPrice(dc)
     {
     	var priceFont = Graphics.FONT_NUMBER_HOT;
+    	var textFont = Graphics.FONT_TINY;
+    	
+    	var lastPriceValue = Lang.format("$1$", [mLastPrice.format("%.2f")]);
     
-    	var yOffset = dc.getFontHeight(priceFont) + dc.getFontHeight(Graphics.FONT_TINY);
-		dc.drawText(dc.getWidth()/2, dc.getHeight()/2 - yOffset, Graphics.FONT_TINY, "Last price", Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-    		
-    	var priceLabel = Lang.format("$1$", [mLastPrice.format("%.2f")]);
-    	dc.drawText(dc.getWidth()/2 - dc.getTextWidthInPixels(priceLabel, priceFont)/2, dc.getHeight()/2 - graphHeight*2, Graphics.FONT_LARGE, "$ ", Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
-    	dc.drawText(dc.getWidth()/2, dc.getHeight()/2 - graphHeight*2, priceFont, priceLabel, Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    	var fstRowY = dc.getHeight()/2 - dc.getTextDimensions("0", priceFont)[1]/2 - dc.getTextDimensions("0", textFont)[1];
+    	var sndRowY = dc.getHeight()/2- dc.getTextDimensions("0", priceFont)[1]/2;
+		
+		dc.drawText(dc.getWidth()/2 - dc.getTextWidthInPixels(lastPriceValue, priceFont)/2 - 10, 
+					fstRowY, 
+					textFont, 
+					"Last price", 
+					Graphics.TEXT_JUSTIFY_LEFT);
+					
+    	dc.drawText(dc.getWidth()/2 + dc.getTextWidthInPixels(lastPriceValue, priceFont)/2,
+					fstRowY, 
+					textFont, 
+					Lang.format("$1$", [(mLastReturn * 100).format("%.2f")]) + "%", 
+					Graphics.TEXT_JUSTIFY_RIGHT);
+    	
 
-    	dc.drawText(dc.getWidth()/2 + dc.getTextWidthInPixels(priceLabel, priceFont)/2,
-    				dc.getHeight()/2 - yOffset + dc.getTextDimensions("Last price", Graphics.FONT_TINY)[1], 
-    				Graphics.FONT_TINY, 
-    				Lang.format("$1$", [(mLastReturn * 100).format("%.2f")]) + "%", 
-    				Graphics.TEXT_JUSTIFY_LEFT);
+    	dc.drawText(dc.getWidth()/2 - dc.getTextWidthInPixels(lastPriceValue, priceFont)/2, 
+    				sndRowY, 
+    				Graphics.FONT_LARGE, 
+    				"$ ", 
+    				Graphics.TEXT_JUSTIFY_RIGHT);
+    				
+    	dc.drawText(dc.getWidth()/2, 
+    				sndRowY, 
+    				priceFont, 
+    				lastPriceValue, 
+    				Graphics.TEXT_JUSTIFY_CENTER);
+
+
     }
      
     //! Draw high/low price next to graph
