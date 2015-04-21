@@ -24,7 +24,7 @@ class PriceModel
   	function initialize(handler)
     {
         notify = handler;
-		 
+        
 		// Comment when using simulator
 		var settings = Sys.getDeviceSettings();
 		// documented: phoneConnected is missing in vivoactive FW 2.30
@@ -89,8 +89,26 @@ class PriceModel
             	bcp = new BitcoinPrice();
            	}
       
-            bcp.history = data["bpi"].values();
-                        
+            Sys.println(data["bpi"]);
+            
+            //order by most recent date last in array
+            var priceSeries = new [data["bpi"].keys().size()];
+            for(var i = 0 ; i < data["bpi"].keys().size() ; i++)
+          	 {
+          	 	priceSeries[i] = new[2];
+          	 	var date = data["bpi"].keys()[i];
+
+          	 	var year = date.substring(0, 4).toNumber();
+          	 	var month = date.substring(5, 2).toNumber();
+          	 	var day = date.substring(8, 2).toNumber();
+     
+          	 	priceSeries[i][0] = Gre.moment({:year => year, :month => month, :day => day});
+            	priceSeries[i][1] = data["bpi"].get(date).toFloat();
+            }
+            
+   			bubble_sort_moments(priceSeries);
+   			bcp.history = priceSeries;
+                                    
             if(bcp.lastPrice == 0.0){ return; } // wait for last price in other callback
             	
             notify.invoke(bcp);
@@ -112,4 +130,17 @@ class PriceModel
             notify.invoke("Data request\nfailed\nError: " + responseCode.toString());
         }
     }
+    
+    // sorts the input array in place. this will be expensive for long arrays.
+	function bubble_sort_moments(array) {
+	    for (var i = 0; i < array.size(); ++i) {
+	        for (var j = i; j < array.size(); ++j) {
+	            if (array[j][0].value() < array[i][0].value()) {
+	               var tmp = array[i];
+	               array[i] = array[j];
+	               array[j] = tmp;
+	            }
+	        }
+	    }
+	}
 }

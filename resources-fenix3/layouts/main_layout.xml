@@ -1,0 +1,5 @@
+<layout id="MainLayout">
+   <label id="PriceLabel_pos" x="5000" y="20" font="Gfx.FONT_TINY" text="Today" color="Gfx.COLOR_GREEN" />
+    <label id="PriceLabel_neg" x="5000" y="20" font="Gfx.FONT_TINY" text="Today" color="Gfx.COLOR_RED" />
+     <label id="LastReturn_loc" x="120" y="20" text="%" color="Gfx.COLOR_RED" />
+</layout>
