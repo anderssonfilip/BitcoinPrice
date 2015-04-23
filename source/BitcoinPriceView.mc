@@ -7,7 +7,7 @@ using Toybox.System as Sys;
 class BitcoinPriceView extends Ui.View {
 
 	hidden var commError = null; // place holder for notification of missing Communications module
-   	hidden var mEdges = null;
+   	hidden var mPoints = null;   // price points in graph
    	hidden var mLastPrice = 0.0;
    	hidden var mLastReturn = 0.0;  // total return (%) over last day period, including last price
    	hidden var mHigh = 0.0;
@@ -51,7 +51,7 @@ class BitcoinPriceView extends Ui.View {
     
         dc.clear();
 
-		if(mEdges != null)
+		if(mPoints != null)
 		{
 			var foreground = null;
 			var graphPenWidth = 3;
@@ -82,8 +82,8 @@ class BitcoinPriceView extends Ui.View {
 			
 			var graphWidth = dc.getTextWidthInPixels("999.99", priceFont);
 			var xC = dc.getWidth()/2;
-			var xStep = graphWidth / mEdges.size();  // horizontal size of each line segment
-			var xs = new [mEdges.size()];			 // horizontal start/end point for line segments
+			var xStep = graphWidth / mPoints.size();  // horizontal size of each line segment
+			var xs = new [mPoints.size()];			 // horizontal start/end point for line segments
 			for(var i = 0 ; i < xs.size() ; i++)
 			{
 				xs[i] = xC + (-0.5*graphWidth + xStep*i);
@@ -92,24 +92,22 @@ class BitcoinPriceView extends Ui.View {
 			var top = dc.getHeight()/2 + 0.5 * graphHeight;
     		var bottom = top + graphHeight;
     		
-			for(var i = 1 ; i < mEdges.size(); i++)
+			for(var i = 1 ; i < mPoints.size(); i++)
 			{
-				dc.drawLine(xs[i-1], bottom - mEdges[i-1], xs[i], bottom - mEdges[i]);
+				dc.drawLine(xs[i-1], bottom - mPoints[i-1], xs[i], bottom - mPoints[i]);
 			}
 	
 			dc.drawText(xC, 
 						bottom + dc.getTextDimensions("5 days", textFont)[1]/2 + 2,
 						textFont, 
-						mEdges.size()-1 + " days", 
+						mPoints.size()-1 + " days", 
 						Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
     		drawOpenClosePricesInGraph(dc, 
     								   xs[0],
     								   top,
     								   xs[xs.size()-1], 
-    								   bottom, 
-    								   mLow,
-    								   mHigh);
+    								   bottom);
     	}
     	else
     	{
@@ -152,7 +150,7 @@ class BitcoinPriceView extends Ui.View {
     }
      
     //! Draw high/low price next to graph
-    function drawOpenClosePricesInGraph(dc, left, top, right, bottom, open, close)
+    function drawOpenClosePricesInGraph(dc, left, top, right, bottom)
     {
 		dc.setPenWidth(1);
 		dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_BLACK);  // overpainting
@@ -160,9 +158,8 @@ class BitcoinPriceView extends Ui.View {
 		dc.drawLine(left, top, right, top);	  	
 		dc.drawLine(left, bottom, right, bottom);
 		
-		// TODO: price should be rounded not truncated
-		dc.drawText(right, bottom, Graphics.FONT_XTINY, open.format("%d"), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
-		dc.drawText(right, top, Graphics.FONT_XTINY, close.format("%d"), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+		dc.drawText(right, bottom, Graphics.FONT_XTINY, round(mLow).format("%d"), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+		dc.drawText(right, top, Graphics.FONT_XTINY, round(mHigh).format("%d"), Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
     }
     
     //! Called by PriceModel when data is received by JSON request or request returned error.
@@ -200,14 +197,14 @@ class BitcoinPriceView extends Ui.View {
 			}
 			
 			var range = mHigh - mLow;
-			var edges = new[bcp.history.size() + 1];
-			for(var i = 0 ; i < edges.size() - 1 ; i++)  // normalize returns
+			var points = new[bcp.history.size() + 1];
+			for(var i = 0 ; i < points.size() - 1 ; i++)  // normalize prices
 			{
-				edges[i] = ((bcp.history[i][1] - mLow)/range) * graphHeight;
+				points[i] = ((bcp.history[i][1] - mLow)/range) * graphHeight;
 			}
-			edges[bcp.history.size()] = ((bcp.lastPrice - mLow)/range) * graphHeight;
+			points[bcp.history.size()] = ((bcp.lastPrice - mLow)/range) * graphHeight;
 			
-			mEdges = edges;
+			mPoints = points;
 			
 			isDailyTrendPositive = bcp.lastPrice - bcp.history[bcp.history.size()-1][1] >= 0.0;
 			isHistoricTrendPositive = bcp.history[bcp.history.size()-1][1] - bcp.history[0][1] >= 0.0;
@@ -218,5 +215,17 @@ class BitcoinPriceView extends Ui.View {
        	}
         Ui.requestUpdate();
     }
-
+    
+    //! round a positive Float or Double, return a Long
+   	function round(value)
+	{
+		if(value - value.toLong() >= 0.5)
+		{
+			return (value+1).toLong();
+		}
+		else
+		{
+			return value.toLong();
+		}
+	}
 }
