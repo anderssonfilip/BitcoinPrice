@@ -89,7 +89,7 @@ class PriceModel
             	bcp = new BitcoinPrice();
            	}
       
-            Sys.println(data["bpi"]);
+            //Sys.println(data["bpi"]);
             
             //order by most recent date last in array
             var priceSeries = new [data["bpi"].keys().size()];

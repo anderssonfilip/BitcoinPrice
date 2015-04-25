@@ -207,7 +207,8 @@ class BitcoinPriceView extends Ui.View {
 			mPoints = points;
 			
 			isDailyTrendPositive = bcp.lastPrice - bcp.history[bcp.history.size()-1][1] >= 0.0;
-			isHistoricTrendPositive = bcp.history[bcp.history.size()-1][1] - bcp.history[0][1] >= 0.0;
+			isHistoricTrendPositive = bcp.lastPrice - bcp.history[0][1] >= 0.0;
+			
         }
         else if (bcp instanceof Lang.String)
         {
