@@ -6,6 +6,7 @@ using Toybox.System as Sys;
 
 class BitcoinPrice
 {
+	var currency;  // USD or CNY
 	var lastPrice = 0.0;
 	var time = "";  // time in UTC for lastPrice as string, e.g. Mar 30, 2015 17:20:00 UTC
 
@@ -16,6 +17,8 @@ class BitcoinPrice
 class PriceModel
 {
 	var bcp = null;  // type BitcoinPrice
+
+	hidden var mActiveReq = null;
 	
 	hidden var baseURL = "http://api.coindesk.com/v1/bpi/";
 	hidden var historicalDays = 5;
@@ -25,15 +28,23 @@ class PriceModel
     {
         notify = handler;
         
-		// Comment when using simulator
+        makePriceRequests("USD");    				 
+    }
+    
+    function makePriceRequests(currency)
+    {
+    	// Comment when using simulator
 		var settings = Sys.getDeviceSettings();
 		// documented: phoneConnected is missing in vivoactive FW 2.30
 		//if(settings has :phoneConnected and !settings.phoneConnected){ notify.invoke("Phone\nnot\nconnected"); return; }
 					
 		if (Toybox has :Communications) 
 		{
+			bcp = null;
+			mActiveReq = currency; 
+			
 			// get last price
-			Comm.makeJsonRequest(baseURL + "currentprice/USD.json",
+			Comm.makeJsonRequest(baseURL + "currentprice/" + currency + ".json",
 		         				 {}, 
 		         				 {}, 
 		         				 method(:onReceivePrice));
@@ -45,17 +56,18 @@ class PriceModel
 						   	   
 		    Comm.makeJsonRequest(baseURL + "historical/close.json",
 		         				 {	
-		         				 	"index" => "USD", 
+		         				 	"index" => currency, 
 		         				 	"start" => start.year + "-" + start.month.format("%.2d") + "-" + start.day.format("%.2d"), 
 		         				 	"end"=> end.year + "-" + end.month.format("%.2d") + "-" + end.day.format("%.2d")
 		         				 }, 
 		         				 {}, 
-		         				 method(:onReceiveHistory));
+		         				 method(:onReceiveHistory));	 
       	}
       	else
       	{
       		notify.invoke("Communication\nnot\npossible");
-      	}     				 
+      	} 
+    
     }
 
 	function onReceivePrice(responseCode, data)
@@ -65,18 +77,22 @@ class PriceModel
         	if(bcp == null)
         	{
             	bcp = new BitcoinPrice();
+            	bcp.currency = mActiveReq;
 			}
             
-            bcp.lastPrice = data["bpi"]["USD"]["rate"].toFloat();
+            bcp.lastPrice = data["bpi"][mActiveReq]["rate_float"].toFloat();
             bcp.time = data["time"]["updated"];
             
             if(bcp.history == null){ return; } // wait for historic data in other callback
             
             notify.invoke(bcp);
+            
+            mActiveReq = null;
         }
         else 
         {
         	handleError(responseCode, data);
+        	mActiveReq = null;
         }
     }
 	
@@ -87,9 +103,10 @@ class PriceModel
         	if(bcp == null)
         	{
             	bcp = new BitcoinPrice();
+            	bcp.currency = mActiveReq;
            	}
       
-            //Sys.println(data["bpi"]);
+            Sys.println(data["bpi"]);
             
             //order by most recent date last in array
             var priceSeries = new [data["bpi"].keys().size()];
@@ -112,16 +129,19 @@ class PriceModel
             if(bcp.lastPrice == 0.0){ return; } // wait for last price in other callback
             	
             notify.invoke(bcp);
+            
+            mActiveReq = null;
         }
         else 
         {
         	handleError(responseCode, data);
+        	mActiveReq = null;
         }
     }
     
     function handleError(responseCode, data)
     {
-    	if(responseConde == 408) // Request Timeout
+    	if(responseCode == 408) // Request Timeout
 		{
 			notify.invoke("Data request\ntimed out");
 		}

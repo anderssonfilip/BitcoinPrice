@@ -8,6 +8,7 @@ class BitcoinPriceView extends Ui.View {
 
 	hidden var commError = null; // place holder for notification of missing Communications module
    	hidden var mPoints = null;   // price points in graph
+	hidden var mCurrency;
    	hidden var mLastPrice = 0.0;
    	hidden var mLastReturn = 0.0;  // total return (%) over last day period, including last price
    	hidden var mHigh = 0.0;
@@ -80,7 +81,7 @@ class BitcoinPriceView extends Ui.View {
 			}
 			dc.setColor(foreground, Graphics.COLOR_TRANSPARENT);
 			
-			var graphWidth = dc.getTextWidthInPixels("999.99", priceFont);
+			var graphWidth = dc.getTextWidthInPixels("9999.99", priceFont);
 			var xC = dc.getWidth()/2;
 			var xStep = graphWidth / mPoints.size();  // horizontal size of each line segment
 			var xs = new [mPoints.size()];			 // horizontal start/end point for line segments
@@ -136,10 +137,10 @@ class BitcoinPriceView extends Ui.View {
 					Lang.format("$1$", [(mLastReturn * 100).format("%.2f")]) + "%", 
 					Graphics.TEXT_JUSTIFY_RIGHT);
 
-    	dc.drawText(dc.getWidth()/2 - dc.getTextWidthInPixels(lastPriceValue, priceFont)/2, 
+    	dc.drawText(dc.getWidth()/2 - dc.getTextWidthInPixels(lastPriceValue, priceFont)/2 - 5, 
     				y2, 
     				Graphics.FONT_LARGE, 
-    				"$ ", 
+    				mCurrency, 
     				Graphics.TEXT_JUSTIFY_RIGHT);
     				
     	dc.drawText(dc.getWidth()/2, 
@@ -168,8 +169,19 @@ class BitcoinPriceView extends Ui.View {
     {        
         if (bcp instanceof BitcoinPrice)
         {
-        	mLastPrice = bcp.lastPrice;
+        	mHigh = 0.0;
+        	mLow = 0.0;
         	
+        	if(bcp.currency.equals("USD"))
+        	{
+        		mCurrency = "$";
+        	}
+        	else if(bcp.currency.equals("CNY"))
+        	{
+        		mCurrency = "¥";
+        	}
+        	
+        	mLastPrice = bcp.lastPrice;
         	// return since yesterday
         	mLastReturn = (mLastPrice - bcp.history[bcp.history.size()-1][1])/bcp.history[bcp.history.size()-1][1];
 
